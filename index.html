@@ -90,18 +90,48 @@
         .controls input {
             width: 45%;
         }
+        .switch {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .switch input {
+            margin-right: 10px;
+        }
+        .volume-control {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .volume-control input {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Cronômetro</h1>
         <div id="timers">
-            <div class="timer-input">
-                <input type="text" placeholder="Tempo (ex: 1h, 1d, 1m, 1s)" class="timer-value">
-                <button onclick="addTimer()">+</button>
+            <div class="switch">
+                <input type="checkbox" id="switch-1s" onchange="toggleTimer(1, 's')">
+                <label for="switch-1s">1 Segundo</label>
+            </div>
+            <div class="switch">
+                <input type="checkbox" id="switch-1m" onchange="toggleTimer(1, 'm')">
+                <label for="switch-1m">1 Minuto</label>
+            </div>
+            <div class="switch">
+                <input type="checkbox" id="switch-10m" onchange="toggleTimer(10, 'm')">
+                <label for="switch-10m">10 Minutos</label>
+            </div>
+            <div class="switch">
+                <input type="checkbox" id="switch-1h" onchange="toggleTimer(1, 'h')">
+                <label for="switch-1h">1 Hora</label>
             </div>
         </div>
-        <button class="start-button" onclick="startTimers()">Iniciar</button>
+        <div class="volume-control">
+            <label for="volume-slider">Volume</label>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" onchange="adjustVolume()">
+        </div>
         <div class="timer-list" id="timer-list"></div>
     </div>
     <script src="timer.js"></script>

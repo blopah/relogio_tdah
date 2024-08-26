@@ -1,109 +1,93 @@
-let timers = [];
-let intervals = [];
+let timers = {};
+let volume = 1.0; // Volume inicial
 
-function parseTimeInput(input) {
-    const timeUnits = {
-        's': 1,
-        'm': 60,
-        'h': 3600,
-        'd': 86400
-    };
-    const unit = input.slice(-1);
-    const value = parseInt(input.slice(0, -1));
-    return value * (timeUnits[unit] || 1);
+function emitirAlerta(intervalo) {
+    const agora = new Date();
+    let mensagem;
+
+    switch (intervalo) {
+        case 's':
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = context.createOscillator();
+            const gainNode = context.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, context.currentTime);
+            gainNode.gain.value = volume;
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 600);
+            return;
+        case 'm':
+            mensagem = `${agora.getMinutes()} minutos`;
+            break;
+        case 'h':
+            mensagem = `${agora.getHours()} horas`;
+            break;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(mensagem);
+    utterance.volume = volume;
+    utterance.voice = speechSynthesis.getVoices().find(voice => voice.name === 'Google UK English Female');
+    speechSynthesis.speak(utterance);
 }
 
-function emitirAlerta(volume, frequency) {
-    const context = new (window.AudioContext || window.webkitAudioContext)();
-    const gainNode = context.createGain();
-    gainNode.gain.value = volume;
+function calcularProximoTempo(intervalo, unidade) {
+    const agora = new Date();
+    let proximo;
 
-    const oscillator = context.createOscillator();
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-    oscillator.connect(gainNode).connect(context.destination);
+    switch (unidade) {
+        case 's':
+            proximo = new Date(agora.getTime() + intervalo * 1000);
+            break;
+        case 'm':
+            proximo = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), agora.getHours(), agora.getMinutes() + intervalo, 0, 0);
+            break;
+        case 'h':
+            proximo = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), agora.getHours() + intervalo, 0, 0, 0);
+            break;
+    }
 
-    oscillator.start();
-    setTimeout(() => oscillator.stop(), 600);
+    return proximo;
 }
 
-function startTimer(index) {
-    const timer = timers[index];
-    const interval = setInterval(() => {
-        if (timer.remainingTime > 0) {
-            timer.remainingTime--;
-            renderTimers();
-        } else {
-            emitirAlerta(timer.volume, timer.frequency);
-            timer.remainingTime = timer.initialTime;
-        }
-    }, 1000);
-    intervals[index] = interval;
+function iniciarTimer(intervalo, unidade) {
+    const key = `${intervalo}${unidade}`;
+    if (timers[key]) {
+        clearTimeout(timers[key]);
+    }
+
+    const proximoTempo = calcularProximoTempo(intervalo, unidade);
+    const tempoEspera = proximoTempo - new Date();
+
+    timers[key] = setTimeout(() => {
+        emitirAlerta(unidade);
+        iniciarTimer(intervalo, unidade);
+    }, tempoEspera);
 }
 
-function addTimer() {
-    const timerValue = document.querySelector('.timer-value').value;
-    if (timerValue) {
-        const timeInSeconds = parseTimeInput(timerValue);
-        const timer = {
-            initialTime: timeInSeconds,
-            remainingTime: timeInSeconds,
-            volume: 0.5,
-            frequency: 440
-        };
-        timers.push(timer);
-        renderTimers();
+function pararTimer(intervalo, unidade) {
+    const key = `${intervalo}${unidade}`;
+    if (timers[key]) {
+        clearTimeout(timers[key]);
+        timers[key] = null;
     }
 }
 
-function removeTimer(index) {
-    clearInterval(intervals[index]);
-    timers.splice(index, 1);
-    intervals.splice(index, 1);
-    renderTimers();
-}
-
-function editTimer(index) {
-    const newValue = prompt("Digite o novo valor do cronômetro (ex: 1h, 1d, 1m, 1s):", timers[index].initialTime);
-    if (newValue) {
-        const timeInSeconds = parseTimeInput(newValue);
-        timers[index].initialTime = timeInSeconds;
-        timers[index].remainingTime = timeInSeconds;
-        renderTimers();
+function toggleTimer(intervalo, unidade) {
+    const checkbox = document.getElementById(`switch-${intervalo}${unidade}`);
+    if (checkbox.checked) {
+        iniciarTimer(intervalo, unidade);
+    } else {
+        pararTimer(intervalo, unidade);
     }
 }
 
-function updateVolume(index, volume) {
-    timers[index].volume = volume;
-}
-
-function updateFrequency(index, frequency) {
-    timers[index].frequency = frequency;
-}
-
-function renderTimers() {
-    const timerList = document.getElementById('timer-list');
-    timerList.innerHTML = '';
-    timers.forEach((timer, index) => {
-        const timerItem = document.createElement('div');
-        timerItem.className = 'timer-item';
-        timerItem.innerHTML = `
-            <span>${timer.initialTime} segundos (restam ${timer.remainingTime} segundos)</span>
-            <div class="controls">
-                <input type="range" min="0" max="1" step="0.01" value="${timer.volume}" onchange="updateVolume(${index}, this.value)">
-                <input type="range" min="100" max="1000" step="1" value="${timer.frequency}" onchange="updateFrequency(${index}, this.value)">
-            </div>
-            <button onclick="editTimer(${index})">Editar</button>
-            <button onclick="removeTimer(${index})">Remover</button>
-        `;
-        timerList.appendChild(timerItem);
-    });
-}
-
-function startTimers() {
-    timers.forEach((_, index) => startTimer(index));
+function adjustVolume() {
+    const volumeSlider = document.getElementById('volume-slider');
+    volume = volumeSlider.value;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    renderTimers();
+    // Inicializa os timers se necessário
 });
